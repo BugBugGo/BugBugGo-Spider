@@ -40,20 +40,28 @@ function get_next_ip() {
     cat $data_path/tmp/ips.txt | sort | uniq > $data_path/ips.txt
 }
 
-function parse_file() {
+function parse_line() {
     # TODO: support http not only https
     # TODO: prefer quoted url to get the whole url not only base
+    local line=$1
+    log "line: $line"
+    if [[ "$line" =~ (\"https://[a-zA-Z0-9\./%-]{3,256}\")(.*)+ ]]
+    then
+        m="${BASH_REMATCH[1]}"
+        m=${m:1:-1} # chop off quotes
+        dbg "match: $m"
+        echo "$m" >> $data_path/ips.txt
+        if [ "${BASH_REMATCH[2]}" != "" ]
+        then
+            parse_line "${BASH_REMATCH[2]}"
+        fi
+    fi
+}
+
+function parse_file() {
     local file=$1
     while read line; do
-        if [[ "$line" =~ (\"https://[a-zA-Z0-9\./]{3,32}\") ]]
-        then
-            for m in "${BASH_REMATCH[@]}"
-            do
-                log "line: $line"
-                dbg "match: $m"
-                echo "$m" >> $data_path/ips.txt
-            done
-        fi
+        parse_line "$line"
     done < <(grep "https://" $file)
 }
 
@@ -73,7 +81,7 @@ function scrape_ip() {
         cat $data_path/ips.txt
         exit 1
     fi
-    # scrape_ip "$ip"
+    scrape_ip "$ip"
 }
 
 mkdir -p $data_path/tmp
