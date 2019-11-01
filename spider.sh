@@ -1,5 +1,7 @@
 #!/bin/bash
 
+crash_include logger.sh
+
 data_path=data
 
 if [ "$1" == "--help" ] || [ "$1" == "-h" ]
@@ -9,18 +11,6 @@ then
     echo "             either starting from provided addres or randomly generated one"
     exit 0
 fi
-
-function log() {
-    echo "[+] $1"
-}
-
-function err() {
-    echo "[-] $1"
-}
-
-function dbg() {
-    echo "[dbg] $1"
-}
 
 function rand_byte() {
     printf "$((0 + RANDOM % 255))"
