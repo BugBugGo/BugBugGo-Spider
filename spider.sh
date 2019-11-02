@@ -80,6 +80,12 @@ if [ $# -gt 0 ]
 then
     scrape_ip "$1"
 else
-    scrape_ip "$(get_random_ip)"
+    ip=$(get_next_ip)
+    if [ "$ip" == "" ]
+    then
+        scrape_ip "$(get_random_ip)"
+    else
+        scrape_ip "$ip"
+    fi
 fi
 
