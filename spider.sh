@@ -3,6 +3,7 @@
 crash_include logger.sh
 
 data_path=data
+delete_downloads=0
 
 if [ "$1" == "--help" ] || [ "$1" == "-h" ]
 then
@@ -55,10 +56,15 @@ function parse_line() {
         m="${BASH_REMATCH[1]}"
         m=${m:1:-1} # chop off quotes
         dbg "match: $m"
-        if grep -q "$addr" "$data_path/known_ips.txt"
+        if [ -f "$data_path/known_ips.txt" ] && grep -q "$addr" "$data_path/known_ips.txt"
         then
             dbg "ignoring known address '$addr'"
         else
+            if [ ! -d "$data_path" ]
+            then
+                err "data path does not exist '$data_path'"
+                exit 1
+            fi
             echo "$m" >> $data_path/ips.txt
         fi
         if [ "${BASH_REMATCH[2]}" != "" ]
@@ -75,17 +81,74 @@ function parse_file() {
     done < <(grep "https://" "$file")
 }
 
+function download_site() {
+    local addr=$1
+    local addr_path=""
+    local addr_file=""
+    local dir=$(pwd)
+    if [ "$#" != "1" ]
+    then
+        err "download_site() failed:"
+        err "invalid number of arguemnts"
+        exit 1
+    fi
+    addr="${addr#https://}"
+    addr="${addr#http://}"
+    addr="${addr%%+(/)}"    # strip trailing slash
+    addr_file="${addr##*/}" # get last word after slash
+    if [[ ! "$addr" =~ / ]]
+    then
+        wrn "address does not include a slash"
+        addr_path="$addr"
+    else
+        addr_path="${addr%/*}"
+    fi
+    dbg "addr='$addr' path='$addr_path' file='$addr_file' dir='$dir'"
+    mkdir -p "$data_path/$addr_path" || exit 1
+    cd "$data_path/$addr_path"
+    wget_out="$(wget --tries=1 --timeout=10 "$addr" 2>&1)"
+    wget_code="$?"
+    if [ "$wget_code" != "0" ]
+    then
+        err "download_site() failed:"
+        err "wget failed with error code $wget_code"
+        err "wget output:"
+        echo "$wget_out"
+        exit 1
+    fi
+    if [ "$wget_out" == "" ]
+    then
+        err "download_site() failed:"
+        err "wget had no output"
+        exit 1
+    fi
+    filename="$(echo "$wget_out" | tail -n1 | cut -d 's' -f2)"
+    if [ "$filename" == "" ] || [ "${#filename}" -lt 8 ]
+    then
+        err "download_site() failed:"
+        err "invalid filname='$filename' wget output:"
+        echo "$wget_out"
+        exit 1
+    fi
+    filename="${filename:5:-2}"
+    dbg "downloaded file='$filename'"
+    parse_file "$filename"
+    if [ "$delete_downloads" == "1" ]
+    then
+        wrn "deleting file '$filename' ..."
+        rm "$filename"
+    fi
+    cd "$dir"
+}
+
 function scrape_ip() {
     local addr=$1
     log "scraping address '$addr'"
-    if grep -q "$addr" "$data_path/known_ips.txt"
+    if [ -f "$data_path/known_ips.txt" ] && grep -q "$addr" "$data_path/known_ips.txt"
     then
         log "skipping known address '$addr'"
     else
-        current_file=$data_path/tmp/current_$(date +%s).txt
-        wget -O "$current_file" --tries=1 --timeout=10 "$addr"
-        parse_file "$current_file"
-        rm "$current_file"
+        download_site "$addr"
     fi
     # TODO: use a bash hash for known ips and increase number
     echo "$ip" >> $data_path/known_ips.txt
@@ -95,13 +158,21 @@ function scrape_ip() {
     if [ "$ip" == "" ]
     then
         err "ip list is empty"
-        cat $data_path/ips.txt
         exit 1
     fi
     scrape_ip "$ip"
 }
 
+# create data path and make it absolute
 mkdir -p $data_path/tmp
+if [[ $data_path =~ ^/.* ]]
+then
+    suc "using absolute data path '$data_path'"
+else
+    wrn "data path is relative '$data_path'"
+    data_path="$(pwd)/$data_path"
+    log "using absolute data path '$data_path'"
+fi
 
 if [ $# -gt 0 ]
 then
