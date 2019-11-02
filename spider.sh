@@ -42,7 +42,12 @@ function parse_line() {
         m="${BASH_REMATCH[1]}"
         m=${m:1:-1} # chop off quotes
         dbg "match: $m"
-        echo "$m" >> $data_path/ips.txt
+        if grep -q "$addr" "$data_path/known_ips.txt"
+        then
+            dbg "ignoring known address '$addr'"
+        else
+            echo "$m" >> $data_path/ips.txt
+        fi
         if [ "${BASH_REMATCH[2]}" != "" ]
         then
             parse_line "${BASH_REMATCH[2]}"
@@ -60,12 +65,19 @@ function parse_file() {
 function scrape_ip() {
     local addr=$1
     log "scraping address '$addr'"
-    current_file=$data_path/tmp/current_$(date +%s).txt
-    wget -O "$current_file" --tries=1 --timeout=10 "$addr"
-    parse_file "$current_file"
-    rm "$current_file"
+    if grep -q "$addr" "$data_path/known_ips.txt"
+    then
+        log "skipping known address '$addr'"
+    else
+        current_file=$data_path/tmp/current_$(date +%s).txt
+        wget -O "$current_file" --tries=1 --timeout=10 "$addr"
+        parse_file "$current_file"
+        rm "$current_file"
+    fi
     # TODO: use a bash hash for known ips and increase number
     echo "$ip" >> $data_path/known_ips.txt
+    mv $data_path/known_ips.txt $data_path/tmp/known_ips.txt
+    sort $data_path/tmp/known_ips.txt | uniq > $data_path/known_ips.txt
     ip=$(get_next_ip)
     if [ "$ip" == "" ]
     then
