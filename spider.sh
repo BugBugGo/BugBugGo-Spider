@@ -85,7 +85,8 @@ function download_site() {
     local addr=$1
     local addr_path=""
     local addr_file=""
-    local dir=$(pwd)
+    local dir
+    dir=$(pwd)
     if [ "$#" != "1" ]
     then
         err "download_site() failed:"
@@ -105,7 +106,7 @@ function download_site() {
     fi
     dbg "addr='$addr' path='$addr_path' file='$addr_file' dir='$dir'"
     mkdir -p "$data_path/$addr_path" || exit 1
-    cd "$data_path/$addr_path"
+    cd "$data_path/$addr_path" || exit 1
     wget_out="$(wget --tries=1 --timeout=10 "$addr" 2>&1)"
     wget_code="$?"
     if [ "$wget_code" != "0" ]
@@ -155,7 +156,7 @@ function download_site() {
         wrn "deleting file '$filename' ..."
         rm "$filename"
     fi
-    cd "$dir"
+    cd "$dir" || exit 1
 }
 
 function scrape_ip() {
