@@ -122,15 +122,24 @@ function download_site() {
         err "wget had no output"
         exit 1
     fi
-    filename="$(echo "$wget_out" | tail -n1 | cut -d 's' -f2)"
-    if [ "$filename" == "" ] || [ "${#filename}" -lt 8 ]
+    filename="$(echo "$wget_out" | tail -n1)"
+    local pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}[[:space:]][0-9]{2}:[0-9]{2}:[0-9]{2}[[:space:]]\(.*\)[[:space:]]-[[:space:]](.*)[[:space:]]saved[[:space:]]\[.*\]$'
+    if [[ $filename =~ $pattern ]]
+    then
+        filename="${BASH_REMATCH[1]}"
+    else
+        err "download_site() failed:"
+        err "pattern did not match filename='$filename'"
+        exit 1
+    fi
+    if [ "$filename" == "" ] || [ "${#filename}" -lt 3 ]
     then
         err "download_site() failed:"
         err "invalid filname='$filename' wget output:"
         echo "$wget_out"
         exit 1
     fi
-    filename="${filename:5:-2}"
+    filename="${filename:1:-1}"
     dbg "downloaded file='$filename'"
     parse_file "$filename"
     if [ "$delete_downloads" == "1" ]
