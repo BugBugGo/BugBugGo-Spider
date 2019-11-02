@@ -22,11 +22,24 @@ function get_random_ip() {
     echo "$(rand_byte).$(rand_byte).$(rand_byte).$(rand_byte)"
 }
 
+function clean_and_sort_data() {
+    # sort and unique ips
+    mv $data_path/ips.txt $data_path/tmp/ips.txt
+    sort $data_path/tmp/ips.txt | uniq > $data_path/ips.txt
+    # sort and unique known ips
+    mv $data_path/known_ips.txt $data_path/tmp/known_ips.txt
+    sort $data_path/tmp/known_ips.txt | uniq > $data_path/known_ips.txt
+    # remove known ips from ips
+    comm -23 $data_path/ips.txt $data_path/known_ips.txt > $data_path/tmp/ips.txt
+    mv $data_path/tmp/ips.txt $data_path/ips.txt
+}
+
 function get_next_ip() {
     if [ ! -f $data_path/ips.txt ]
     then
         exit 1
     fi
+    clean_and_sort_data
     tail -n1 $data_path/ips.txt
     head -n -1 $data_path/ips.txt > $data_path/tmp/ips.txt
     sort $data_path/tmp/ips.txt | uniq > $data_path/ips.txt
