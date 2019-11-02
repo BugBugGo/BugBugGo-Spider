@@ -110,11 +110,19 @@ function download_site() {
     wget_code="$?"
     if [ "$wget_code" != "0" ]
     then
-        err "download_site() failed:"
-        err "wget failed with error code $wget_code"
-        err "wget output:"
-        echo "$wget_out"
-        exit 1
+        # only code 1, 2 and 3 are problematic
+        # all the other error codes can be caused by invalid urls
+        if [ "$wget_code" -gt 3 ]
+        then
+            wrn "wget exited with the error code $wget_code"
+            return
+        else
+            err "download_site() failed:"
+            err "wget failed with error code $wget_code"
+            err "wget output:"
+            echo "$wget_out"
+            exit 1
+        fi
     fi
     if [ "$wget_out" == "" ]
     then
