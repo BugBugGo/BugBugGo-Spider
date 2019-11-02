@@ -13,7 +13,9 @@ then
 fi
 
 function rand_byte() {
-    printf "$((0 + RANDOM % 255))"
+    # printf might be more consistent
+    # but i have no clue how to please shellcheck with printf
+    echo -n "$((0 + RANDOM % 255))"
 }
 
 function get_random_ip() {
@@ -27,7 +29,7 @@ function get_next_ip() {
     fi
     tail -n1 $data_path/ips.txt
     head -n -1 $data_path/ips.txt > $data_path/tmp/ips.txt
-    cat $data_path/tmp/ips.txt | sort | uniq > $data_path/ips.txt
+    sort $data_path/tmp/ips.txt | uniq > $data_path/ips.txt
 }
 
 function parse_line() {
@@ -50,18 +52,18 @@ function parse_line() {
 
 function parse_file() {
     local file=$1
-    while read line; do
+    while read -r line; do
         parse_line "$line"
-    done < <(grep "https://" $file)
+    done < <(grep "https://" "$file")
 }
 
 function scrape_ip() {
     local addr=$1
     log "scraping address '$addr'"
     current_file=$data_path/tmp/current_$(date +%s).txt
-    wget -O $current_file --tries=1 --timeout=10 $addr
-    parse_file $current_file
-    rm $current_file
+    wget -O "$current_file" --tries=1 --timeout=10 "$addr"
+    parse_file "$current_file"
+    rm "$current_file"
     # TODO: use a bash hash for known ips and increase number
     echo "$ip" >> $data_path/known_ips.txt
     ip=$(get_next_ip)
