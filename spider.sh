@@ -129,7 +129,7 @@ function download_site() {
     mkdir -p "$data_web/$addr_path" || exit 1
     cd "$data_web/$addr_path" || exit 1
     dbg "pwd=$(pwd)"
-    wget_out="$(wget --tries=1 --timeout=10 "$addr" 2>&1)"
+    wget_out="$(wget -o - --tries=1 --timeout=10 "$addr" 2>&1)"
     wget_code="$?"
     if [ "$wget_code" != "0" ]
     then
