@@ -50,12 +50,12 @@ function parse_line() {
     # TODO: support http not only https
     # TODO: prefer quoted url to get the whole url not only base
     local line=$1
-    log "line: $line"
+    # log "line: $line"
     if [[ "$line" =~ (\"https://[a-zA-Z0-9\./%-]{3,256}\")(.*)+ ]]
     then
         m="${BASH_REMATCH[1]}"
         m=${m:1:-1} # chop off quotes
-        dbg "match: $m"
+        # dbg "match: $m"
         if [ -f "$data_path/known_ips.txt" ] && grep -q "$addr" "$data_path/known_ips.txt"
         then
             dbg "ignoring known address '$addr'"
@@ -93,20 +93,42 @@ function download_site() {
         err "invalid number of arguemnts"
         exit 1
     fi
+    dbg "downloading site addr='$addr'"
     addr="${addr#https://}"
     addr="${addr#http://}"
-    addr="${addr%%+(/)}"    # strip trailing slash
+    addr="${addr%%+(/)}" # strip trailing slash
+    addr="$(echo "$addr" | sed 's/^\/*//g')" # strip leading slashes (https://///foo.bar)
+    if [[ $addr =~ .*/$ ]]
+    then
+        wrn "stripping trailing slash failed '$addr'"
+        addr="${addr::-1}"
+        if [[ $addr =~ .*/$ ]]
+        then
+            err "download_site() failed:"
+            err "could not manually fix the trailing slash."
+            err "addr='$addr'"
+            exit 1
+        fi
+    fi
+    dbg "trailing slash '$addr'"
     addr_file="${addr##*/}" # get last word after slash
+    addr_path="$addr"
     if [[ ! "$addr" =~ / ]]
     then
         wrn "address does not include a slash"
-        addr_path="$addr"
     else
-        addr_path="${addr%/*}"
+        if [[ $addr_file =~ \. ]]
+        then
+            dbg "detected a file link '$addr_file'"
+            addr_path="${addr%/*}"
+            dbg "strip file path until last slash '$addr_path'"
+        fi
     fi
-    dbg "addr='$addr' path='$addr_path' file='$addr_file' dir='$dir'"
+    dbg "addr='$addr' path='$addr_path' file='$addr_file'"
+    dbg "dir=$dir"
     mkdir -p "$data_path/$addr_path" || exit 1
     cd "$data_path/$addr_path" || exit 1
+    dbg "pwd=$(pwd)"
     wget_out="$(wget --tries=1 --timeout=10 "$addr" 2>&1)"
     wget_code="$?"
     if [ "$wget_code" != "0" ]
@@ -116,6 +138,7 @@ function download_site() {
         if [ "$wget_code" -gt 3 ]
         then
             wrn "wget exited with the error code $wget_code"
+            cd "$dir" || exit 1
             return
         else
             err "download_site() failed:"
