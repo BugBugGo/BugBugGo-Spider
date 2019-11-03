@@ -126,8 +126,8 @@ function download_site() {
     fi
     dbg "addr='$addr' path='$addr_path' file='$addr_file'"
     dbg "dir=$dir"
-    mkdir -p "$data_path/$addr_path" || exit 1
-    cd "$data_path/$addr_path" || exit 1
+    mkdir -p "$data_web/$addr_path" || exit 1
+    cd "$data_web/$addr_path" || exit 1
     dbg "pwd=$(pwd)"
     wget_out="$(wget --tries=1 --timeout=10 "$addr" 2>&1)"
     wget_code="$?"
@@ -205,7 +205,8 @@ function scrape_ip() {
 }
 
 # create data path and make it absolute
-mkdir -p $data_path/tmp
+mkdir -p $data_path/tmp || exit 1
+mkdir -p $data_path/web || exit 1
 if [[ $data_path =~ ^/.* ]]
 then
     suc "using absolute data path '$data_path'"
@@ -214,6 +215,8 @@ else
     data_path="$(pwd)/$data_path"
     log "using absolute data path '$data_path'"
 fi
+data_tmp="$data_path/tmp"
+data_web="$data_path/web"
 
 if [ $# -gt 0 ]
 then
